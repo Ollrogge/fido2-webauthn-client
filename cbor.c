@@ -73,6 +73,7 @@ cbor_pack_blob(const char *key, const uint8_t *ptr, size_t len)
 	return cbor_pack_item(key, &item);
 }
 
+/*
 static struct cbor_pair *
 cbor_wrap_blob(const char *key, const uint8_t *ptr, size_t len)
 {
@@ -94,44 +95,39 @@ cbor_wrap_blob(const char *key, const uint8_t *ptr, size_t len)
 
 	return p;
 }
+*/
 
 static cbor_item_t *
 cbor_encode_attestation_statement(const fido_cred_t *c, const char *fmt)
 {
 	cbor_item_t		*attstmt = NULL;
 	const unsigned char	*sig_ptr;
-	const unsigned char	*x5c_ptr;
 	int			 ok = -1;
 	int			 type;
 	size_t			 sig_len;
-	size_t			 x5c_len;
-	struct cbor_pair	*argv[3];
+	struct cbor_pair	*argv[2];
 
 	memset(argv, 0, sizeof(argv));
 
 	if ((type = fido_cred_type(c)) != COSE_ES256 ||
 	    (sig_ptr = fido_cred_sig_ptr(c)) == NULL ||
-	    (sig_len = fido_cred_sig_len(c)) == 0 ||
-	    (x5c_ptr = fido_cred_x5c_ptr(c)) == NULL ||
-	    (x5c_len = fido_cred_x5c_len(c)) == 0) {
+	    (sig_len = fido_cred_sig_len(c)) == 0) {
 		warnx("%s: fido_cred", __func__);
 		goto fail;
 	}
 
-	if ((attstmt = cbor_new_definite_map(3)) == NULL) {
+	if ((attstmt = cbor_new_definite_map(2)) == NULL) {
 		warnx("%s: cbor_new_definite_map", __func__);
 		goto fail;
 	}
 
 	if ((argv[0] = cbor_pack_cose("alg", type)) == NULL ||
-	    (argv[1] = cbor_pack_blob("sig", sig_ptr, sig_len)) == NULL ||
-	    (argv[2] = cbor_wrap_blob("x5c", x5c_ptr, x5c_len)) == NULL) {
+	    (argv[1] = cbor_pack_blob("sig", sig_ptr, sig_len)) == NULL) {
 		warnx("%s: cbor_pack", __func__);
 		goto fail;
 	}
 
-	if (cbor_map_add(attstmt, *argv[1]) == false ||
-	    cbor_map_add(attstmt, *argv[2]) == false) {
+	if (cbor_map_add(attstmt, *argv[1]) == false) {
 		warnx("%s: cbor_map_add", __func__);
 		goto fail;
 	}
@@ -145,7 +141,7 @@ cbor_encode_attestation_statement(const fido_cred_t *c, const char *fmt)
 
 	ok = 0;
 fail:
-	for (size_t i = 0; i < 3; i++)
+	for (size_t i = 0; i < 2; i++)
 		free_pair(&argv[i]);
 
 	if (ok < 0 && attstmt != NULL)
@@ -204,6 +200,7 @@ cbor_build_attestation_object(const fido_cred_t *c)
 		warnx("%s: cbor_new_definite_map", __func__);
 		goto fail;
 	}
+
 
 	if ((argv[0] = cbor_pack_str("fmt", fmt)) == NULL ||
 	    (argv[1] = cbor_pack_item("attStmt", &attstmt)) == NULL ||
